@@ -6,6 +6,10 @@ def main():
     sys.stdout.write("$ ") # this lets you write '$' to the console
     pass
 
+# Captures the user's command in the "command" variable
+command=input()
+print(f'{command}: command not found')
+
 
 if __name__ == "__main__":
     main()
