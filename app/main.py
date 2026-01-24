@@ -14,11 +14,11 @@ def main():
         elif command.startswith("type "):
             cmd_to_check = command.split()[1]
             if cmd_to_check in ['echo', 'exit', 'type']:
-                print(f"{cmd_to_check}: is a shell builtin")
+                print(f"{cmd_to_check} is a shell builtin")
             else:
-                print(f"{cmd_to_check}: not found")
+                print(f"{cmd_to_check} not found")
         else:
-            print(f"{command}: command not found") # prints the command not found message
+            print(f"{command} command not found") # prints the command not found message
 
 
 if __name__ == "__main__":
