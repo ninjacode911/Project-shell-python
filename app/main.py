@@ -19,7 +19,7 @@ def main():
 
         elif command.startswith("type "):
             cmd_to_check = command.split()[1]
-            if cmd_to_check in ['echo', 'exit', 'type', 'pwd']:
+            if cmd_to_check in ['echo', 'exit', 'type', 'pwd', 'cd']:
                 print(f"{cmd_to_check} is a shell builtin")
             else:
                 #search in path
@@ -35,8 +35,12 @@ def main():
                 if not found:
                     print(f"{cmd_to_check}: not found")
 
-        elif command.startswith('cd'):
+        elif command.startswith('cd '):
             directory = parts[1]
+
+            if directory == '~':
+                directory = os.path.expanduser('~')
+
             try:
                 os.chdir(directory)
             except FileNotFoundError:
