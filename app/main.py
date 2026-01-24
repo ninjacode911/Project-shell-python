@@ -49,7 +49,10 @@ def main():
                 if os.path.exists(file_path) and os.access(file_path, os.X_OK):
                     found = True
                     break
-
+            if found:
+                subprocess.run([file_path] + parts[1:])
+            else:
+                print(f"{command}: command not found")
 
 
 if __name__ == "__main__":
