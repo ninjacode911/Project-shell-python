@@ -10,6 +10,13 @@ def main():
             break
         elif command.startswith("echo"):
             print(" ".join(parts[1:])) # joins the list of words back into a string
+
+        elif command.startswith("type "):
+            cmd_to_check = command.split()[1]
+            if cmd_to_check in ['echo', 'exit', 'type']:
+                print(f"{cmd_to_check}: is an internal command")
+            else:
+                print(f"{cmd_to_check}: command not found")
         else:
             print(f"{command}: command not found") # prints the command not found message
 
