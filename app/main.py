@@ -21,16 +21,17 @@ def main():
                 print(f"{cmd_to_check} is a shell builtin")
             else:
                 #search in path
-                path_env = os.environ('PATH','')
+                path_env = os.environ.get('PATH','')
                 directories = path_env.split(os.pathsep)
                 found = False
                 for directory in directories:
-                    if os.path.exists(os.path.join(directory, cmd_to_check)):
-                        print(f"{cmd_to_check} is in {directory}")
+                    file_path = os.path.join(directory, cmd_to_check)
+                    if os.path.exists(file_path) and os.access(file_path, os.X_OK):
+                        print(f"{cmd_to_check} is {file_path}")
                         found = True
                         break
                 if not found:
-                    print(f"{cmd_to_check} not found")
+                    print(f"{cmd_to_check}: not found")
         else:
             print(f"{command}: command not found") # prints the command not found message
 
