@@ -18,7 +18,7 @@ def main():
             else:
                 print(f"{cmd_to_check} not found")
         else:
-            print(f"{command} command not found") # prints the command not found message
+            print(f"{command}: command not found") # prints the command not found message
 
 
 if __name__ == "__main__":
