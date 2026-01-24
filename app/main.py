@@ -49,8 +49,7 @@ def main():
                 if os.path.exists(file_path) and os.access(file_path, os.X_OK):
                     found = True
                     break
-            if found:
-                print(f"{command}: command not found") # prints the command not found message
+
 
 
 if __name__ == "__main__":
