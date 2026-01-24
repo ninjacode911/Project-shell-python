@@ -17,7 +17,7 @@ def main():
 
         elif command.startswith("type "):
             cmd_to_check = command.split()[1]
-            if cmd_to_check in ['echo', 'exit', 'type']:
+            if cmd_to_check in ['echo', 'exit', 'type', 'pwd']:
                 print(f"{cmd_to_check} is a shell builtin")
             else:
                 #search in path
@@ -32,6 +32,10 @@ def main():
                         break
                 if not found:
                     print(f"{cmd_to_check}: not found")
+
+        elif command == "pwd":
+            print(os.getcwd())
+
         else:
             #not a bulletin but try to run as an external program
             #split to get program name and arguments
