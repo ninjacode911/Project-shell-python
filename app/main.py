@@ -50,7 +50,7 @@ def main():
                     found = True
                     break
             if found:
-                subprocess.run([file_path] + parts[1:])
+                subprocess.run([program_name] + parts[1:])
             else:
                 print(f"{command}: command not found")
 
