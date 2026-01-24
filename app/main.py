@@ -8,12 +8,14 @@ def main():
         parts = command.split() # splits the command into a list of words
 
 
+        # if-starts 
 
-
-        if command == "exit":
+        if command == "exit":  # if the command is exit, break the loop
             break
+
         elif command.startswith("echo"):
             print(" ".join(parts[1:])) # joins the list of words back into a string
+
 
         elif command.startswith("type "):
             cmd_to_check = command.split()[1]
@@ -32,6 +34,13 @@ def main():
                         break
                 if not found:
                     print(f"{cmd_to_check}: not found")
+
+        elif command.startswith('cd'):
+            directory = parts[1]
+            try:
+                os.chdir(directory)
+            except FileNotFoundError:
+                print(f"cd: {directory}: No such file or directory")
 
         elif command == "pwd":
             print(os.getcwd())
