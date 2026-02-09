@@ -64,6 +64,7 @@ def main():
             for directory in directories:
                 file_path = os.path.join(directory, program_name)
                 if os.path.exists(file_path) and os.access(file_path, os.X_OK):
+                    
                     found = True
                     break
             if found:
