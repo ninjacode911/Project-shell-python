@@ -5,15 +5,13 @@ import subprocess
 try:
     import readline
 except ImportError:
-    # Readline is not available on basic Windows Python installations,
-    # but is available on Linux where the tests run.
     pass
 
 def parse_command(command):
     """Parse command line respecting single quotes, double quotes, and backslashes."""
     parts = []
     current_part = ""
-    quote_char = None  # None, "'", or '"'
+    quote_char = None
     
     i = 0
     while i < len(command):
@@ -47,20 +45,36 @@ def parse_command(command):
     return parts
 
 def main():
-    # --- AUTOCOMPLETION SETUP ---
     builtins_list = ["echo", "exit", "pwd", "cd", "type"]
 
     def completer(text, state):
-        # Filter builtins that start with the text being typed
+        # 1. Match builtins
         matches = [b for b in builtins_list if b.startswith(text)]
+        
+        # 2. Match Path Executables
+        path_env = os.environ.get("PATH", "")
+        for directory in path_env.split(os.pathsep):
+            if not os.path.isdir(directory):
+                continue
+            try:
+                for filename in os.listdir(directory):
+                    full_path = os.path.join(directory, filename)
+                    if (filename.startswith(text) and 
+                        os.path.isfile(full_path) and 
+                        os.access(full_path, os.X_OK)):
+                        matches.append(filename)
+            except Exception:
+                continue
+
+        # Clean, Sort, and Index matches
+        matches = sorted(list(set(matches)))
         if state < len(matches):
-            return matches[state] + " " # Add trailing space
+            return matches[state] + " "
         return None
 
     if 'readline' in sys.modules:
         readline.set_completer(completer)
-        # Use tab for completion
-        if sys.platform == 'darwin': # macOS support
+        if sys.platform == 'darwin':
             readline.parse_and_bind("bind ^I rl_complete")
         else:
             readline.parse_and_bind("tab: complete")
@@ -78,7 +92,6 @@ def main():
         if not initial_parts:
             continue
             
-        # --- REDIRECTION LOGIC ---
         stdout_file_path = None
         stderr_file_path = None
         stdout_mode = "w"
@@ -142,8 +155,7 @@ def main():
             elif cmd == "type":
                 if len(parts) > 1:
                     target = parts[1]
-                    builtins = ["echo", "exit", "pwd", "cd", "type"]
-                    if target in builtins:
+                    if target in builtins_list:
                         print(f"{target} is a shell builtin", file=out)
                     else:
                         path_env = os.environ.get("PATH", "")
