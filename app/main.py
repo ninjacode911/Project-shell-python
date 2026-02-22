@@ -111,7 +111,22 @@ def run_builtin(parts, out, err, builtins_list, history_list=None, last_append_p
 def main():
     builtins_list = ["echo", "exit", "pwd", "cd", "type", "history"]
     history_list = []
-    last_append_ptr = [0] # Pointer to the first un-appended command for 'history -a'
+    
+    # Load history from HISTFILE on startup
+    histfile = os.environ.get("HISTFILE")
+    if histfile and os.path.exists(histfile):
+        try:
+            with open(histfile, "r") as f:
+                for line in f:
+                    h_line = line.rstrip("\r\n")
+                    if h_line:
+                        history_list.append(h_line)
+                        if 'readline' in sys.modules:
+                            readline.add_history(h_line)
+        except Exception:
+            pass
+
+    last_append_ptr = [len(history_list)] # Pointer to the first un-appended command for 'history -a'
 
     def completer(text, state):
         matches = [b for b in builtins_list if b.startswith(text)]
@@ -233,7 +248,17 @@ def main():
         stderr_file = open(stderr_file_path, stderr_mode) if stderr_file_path else None
         try:
             out, err = (stdout_file or sys.stdout), (stderr_file or sys.stderr)
-            if parts[0] == "exit": break
+            if parts[0] == "exit":
+                # Save history to HISTFILE on exit
+                histfile = os.environ.get("HISTFILE")
+                if histfile:
+                    try:
+                        with open(histfile, "w") as f:
+                            for h_item in history_list:
+                                f.write(h_item + "\n")
+                    except Exception:
+                        pass
+                break
             if parts[0] in builtins_list:
                 run_builtin(parts, out, err, builtins_list, history_list, last_append_ptr)
             elif get_executable_path(parts[0]):
@@ -243,6 +268,16 @@ def main():
         finally:
             if stdout_file: stdout_file.close()
             if stderr_file: stderr_file.close()
+
+    # Also save on EOF exit (loop break)
+    histfile = os.environ.get("HISTFILE")
+    if histfile:
+        try:
+            with open(histfile, "w") as f:
+                for h_item in history_list:
+                    f.write(h_item + "\n")
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     main()
