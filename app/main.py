@@ -2,6 +2,13 @@ import sys
 import os
 import subprocess
 
+try:
+    import readline
+except ImportError:
+    # Readline is not available on basic Windows Python installations,
+    # but is available on Linux where the tests run.
+    pass
+
 def parse_command(command):
     """Parse command line respecting single quotes, double quotes, and backslashes."""
     parts = []
@@ -40,6 +47,24 @@ def parse_command(command):
     return parts
 
 def main():
+    # --- AUTOCOMPLETION SETUP ---
+    builtins_list = ["echo", "exit", "pwd", "cd", "type"]
+
+    def completer(text, state):
+        # Filter builtins that start with the text being typed
+        matches = [b for b in builtins_list if b.startswith(text)]
+        if state < len(matches):
+            return matches[state] + " " # Add trailing space
+        return None
+
+    if 'readline' in sys.modules:
+        readline.set_completer(completer)
+        # Use tab for completion
+        if sys.platform == 'darwin': # macOS support
+            readline.parse_and_bind("bind ^I rl_complete")
+        else:
+            readline.parse_and_bind("tab: complete")
+
     while True:
         sys.stdout.write("$ ")
         sys.stdout.flush()
@@ -53,7 +78,7 @@ def main():
         if not initial_parts:
             continue
             
-        # --- REDIRECTION LOGIC WITH APPEND SUPPORT ---
+        # --- REDIRECTION LOGIC ---
         stdout_file_path = None
         stderr_file_path = None
         stdout_mode = "w"
@@ -63,7 +88,6 @@ def main():
         i = 0
         while i < len(initial_parts):
             p = initial_parts[i]
-            # Handle Stdout Redirection
             if p in (">", "1>"):
                 stdout_file_path = initial_parts[i+1]
                 stdout_mode = "w"
@@ -72,14 +96,9 @@ def main():
                 stdout_file_path = initial_parts[i+1]
                 stdout_mode = "a"
                 i += 2
-            # Handle Stderr Redirection
             elif p == "2>":
                 stderr_file_path = initial_parts[i+1]
                 stderr_mode = "w"
-                i += 2
-            elif p == "2>>":
-                stderr_file_path = initial_parts[i+1]
-                stderr_mode = "a" # Append mode!
                 i += 2
             elif p == "2>>":
                 stderr_file_path = initial_parts[i+1]
