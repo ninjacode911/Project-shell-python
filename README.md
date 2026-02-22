@@ -8,7 +8,7 @@
 
 A fully functional Unix shell built from scratch in Python as part of the "Build Your Own Shell" challenge. Zero external dependencies — only the Python standard library.
 
-![Shell Demo](Screenshot.png)
+
 
 ---
 
