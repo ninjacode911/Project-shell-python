@@ -1,11 +1,44 @@
 import sys #importing sys module to interact with the system
 import os   #importing os module to interact with the operating system
 import subprocess #importing subprocess module to run external commands
+
+
+def parse_command(command):
+    """Parse command line respecting single quotes."""
+    parts = []
+    current_part = []
+    in_quotes = False
+    
+    i = 0
+    while i < len(command):
+        char = command[i]
+        
+        if char == "'":
+            # Toggle quote mode
+            in_quotes = not in_quotes
+        elif char == ' ' and not in_quotes:
+            # Space outside quotes - end current part
+            if current_part:
+                parts.append(''.join(current_part))
+                current_part = []
+        else:
+            # Regular character or space inside quotes
+            current_part.append(char)
+        
+        i += 1
+    
+    # Add last part if any
+    if current_part:
+        parts.append(''.join(current_part))
+    
+    return parts
+
+
 def main():
     while True: # this adds an infinite loop to make sure the program runs continuously
         sys.stdout.write("$ ") # this lets you write '$' to the console
         command = input() # Captures the user's command in the "command" variable
-        parts = command.split() # splits the command into a list of words
+        parts = parse_command(command) # splits the command into a list of words
 
 
         # if-starts 
