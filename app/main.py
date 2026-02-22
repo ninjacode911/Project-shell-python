@@ -155,29 +155,40 @@ def main():
                         run_builtin(stage, buf, err_f or sys.stderr, builtins_list)
                         data = buf.getvalue().encode()
                         
+                        # Close previous input
+                        if curr_in is not None:
+                            if isinstance(curr_in, int): os.close(curr_in)
+                            else: curr_in.close()
+                            curr_in = None
+
                         if is_last:
                             dest = out_f if out_f else sys.stdout
                             dest.write(data.decode())
-                            if curr_in: os.close(curr_in); curr_in = None
+                            dest.flush()
                         else:
                             r, w = os.pipe()
                             os.write(w, data)
                             os.close(w)
-                            if curr_in: os.close(curr_in)
                             curr_in = r
                     else:
                         # External Stage
                         stdout = subprocess.PIPE if not is_last else out_f
                         p = subprocess.Popen(stage, stdin=curr_in, stdout=stdout, stderr=err_f)
                         procs.append(p)
-                        if curr_in: os.close(curr_in)
+                        
+                        if curr_in is not None:
+                            if isinstance(curr_in, int): os.close(curr_in)
+                            else: curr_in.close()
+                        
                         if not is_last:
-                            curr_in = p.stdout.fileno()
+                            curr_in = p.stdout
+                        else:
+                            curr_in = None
                 
                 for p in procs:
                     p.wait()
-            except Exception as e:
-                print(f"Pipeline error: {e}", file=sys.stderr)
+            except Exception:
+                pass
             finally:
                 if out_f: out_f.close()
                 if err_f: err_f.close()
