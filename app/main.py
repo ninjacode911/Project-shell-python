@@ -118,15 +118,17 @@ def main():
 
     while True:
         try:
-            # Use input() with prompt so readline knows the prompt length
             command_raw = input("$ ")
         except EOFError:
             break
         
-        # Capture raw command for history if not empty
-        if command_raw.strip():
-            history_list.append(command_raw)
-            if 'readline' in sys.modules:
+        # Add to history list for 'history' builtin
+        history_list.append(command_raw)
+        
+        # Add to interactive readline history ONLY if it's not a duplicate of the last entry
+        if 'readline' in sys.modules and command_raw.strip():
+            hist_len = readline.get_current_history_length()
+            if hist_len == 0 or readline.get_history_item(hist_len) != command_raw:
                 readline.add_history(command_raw)
 
         initial_parts = parse_command(command_raw)
