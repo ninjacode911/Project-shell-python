@@ -82,6 +82,14 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
                                         readline.add_history(h_line)
                 except Exception:
                     pass
+            elif len(parts) >= 3 and parts[1] == "-w":
+                path = parts[2]
+                try:
+                    with open(path, "w") as f:
+                        for h_item in history_list:
+                            f.write(h_item + "\n")
+                except Exception:
+                    pass
             else:
                 limit = len(history_list)
                 if len(parts) > 1:
