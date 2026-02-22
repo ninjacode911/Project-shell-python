@@ -70,7 +70,7 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
     elif cmd == "history":
         if history_list is not None:
             for i, h in enumerate(history_list, 1):
-                # Format: right-aligned index in field of 5, two spaces, then command
+                # Standard format: right-aligned index (width 5) followed by 2 spaces
                 print(f"{i:5}  {h}", file=out)
     return True
 
@@ -118,12 +118,14 @@ def main():
         try: command_raw = input()
         except EOFError: break
         
-        if command_raw.strip():
+        # Capture raw command for history before any processing
+        if command_raw.strip() or command_raw == "":
             history_list.append(command_raw)
 
         initial_parts = parse_command(command_raw)
         if not initial_parts: continue
         
+        # Redirection Parsing
         stdout_file_path, stderr_file_path = None, None
         stdout_mode, stderr_mode = "w", "w"
         parts = []
@@ -138,7 +140,7 @@ def main():
 
         if not parts: continue
 
-        # --- PIPELINE HANDLING ---
+        # --- PIPELINE HANDLING (N stages) ---
         if "|" in parts:
             stages = []
             tmp = []
