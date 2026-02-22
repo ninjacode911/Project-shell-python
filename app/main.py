@@ -49,39 +49,53 @@ def main():
         except EOFError:
             break
             
-        parts = parse_command(command_raw)
-        if not parts:
+        initial_parts = parse_command(command_raw)
+        if not initial_parts:
             continue
             
-        # --- REDIRECTION LOGIC ---
-        redirect_file = None
-        # Look for > or 1> in the arguments
-        if ">" in parts:
-            idx = parts.index(">")
-            redirect_file = parts[idx + 1]
-            parts = parts[:idx] # Remove > and filename from command
-        elif "1>" in parts:
-            idx = parts.index("1>")
-            redirect_file = parts[idx + 1]
-            parts = parts[:idx]
+        # --- ENHANCED REDIRECTION LOGIC ---
+        stdout_file_path = None
+        stderr_file_path = None
+        parts = []
+        
+        i = 0
+        while i < len(initial_parts):
+            p = initial_parts[i]
+            if p in (">", "1>"):
+                stdout_file_path = initial_parts[i+1]
+                i += 2
+            elif p == "2>":
+                stderr_file_path = initial_parts[i+1]
+                i += 2
+            else:
+                parts.append(p)
+                i += 1
 
-        output_file = None
-        if redirect_file:
-            # Open file for writing (creates if missing, overwrites if exists)
-            output_file = open(redirect_file, "w")
+        if not parts:
+            continue
+
+        stdout_file = None
+        stderr_file = None
         
         try:
+            if stdout_file_path:
+                stdout_file = open(stdout_file_path, "w")
+            if stderr_file_path:
+                stderr_file = open(stderr_file_path, "w")
+
             cmd = parts[0]
+            # Use sys.stdout/err as defaults if no redirection is present
+            out = stdout_file if stdout_file else sys.stdout
+            err = stderr_file if stderr_file else sys.stderr
 
             if cmd == "exit":
                 break
 
             elif cmd == "echo":
-                # Use 'file' argument to redirect print output
-                print(" ".join(parts[1:]), file=output_file if output_file else sys.stdout)
+                print(" ".join(parts[1:]), file=out)
 
             elif cmd == "pwd":
-                print(os.getcwd(), file=output_file if output_file else sys.stdout)
+                print(os.getcwd(), file=out)
 
             elif cmd == "cd":
                 if len(parts) > 1:
@@ -91,13 +105,13 @@ def main():
                     try:
                         os.chdir(path)
                     except (FileNotFoundError, NotADirectoryError):
-                        print(f"cd: {path}: No such file or directory")
+                        # Shell errors go to stderr!
+                        print(f"cd: {path}: No such file or directory", file=err)
 
             elif cmd == "type":
                 if len(parts) > 1:
                     target = parts[1]
                     builtins = ["echo", "exit", "pwd", "cd", "type"]
-                    out = sys.stdout if not output_file else output_file
                     
                     if target in builtins:
                         print(f"{target} is a shell builtin", file=out)
@@ -125,13 +139,14 @@ def main():
                         break
                 
                 if found_path:
-                    # Pass the file object to subprocess.run's stdout argument
-                    subprocess.run(parts, stdout=output_file if output_file else None)
+                    # Pass BOTH stdout and stderr to subprocess
+                    subprocess.run(parts, stdout=stdout_file, stderr=stderr_file)
                 else:
-                    print(f"{cmd}: command not found")
+                    print(f"{cmd}: command not found", file=err)
+        
         finally:
-            if output_file:
-                output_file.close()
+            if stdout_file: stdout_file.close()
+            if stderr_file: stderr_file.close()
 
 if __name__ == "__main__":
     main()
