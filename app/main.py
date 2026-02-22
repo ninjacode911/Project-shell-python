@@ -114,7 +114,7 @@ def main():
         initial_parts = parse_command(command_raw)
         if not initial_parts: continue
         
-        # Redirection/Pipe Parsing
+        # Redirection Parsing
         stdout_file_path, stderr_file_path = None, None
         stdout_mode, stderr_mode = "w", "w"
         parts = []
@@ -129,35 +129,58 @@ def main():
 
         if not parts: continue
 
-        # --- PIPELINE HANDLING ---
+        # --- PIPELINE HANDLING (N stages) ---
         if "|" in parts:
-            idx = parts.index("|")
-            cmd1_p, cmd2_p = parts[:idx], parts[idx+1:]
-            
-            output_file = open(stdout_file_path, stdout_mode) if stdout_file_path else None
-            error_file = open(stderr_file_path, stderr_mode) if stderr_file_path else None
+            stages = []
+            tmp = []
+            for p in parts:
+                if p == "|": stages.append(tmp); tmp = []
+                else: tmp.append(p)
+            stages.append(tmp)
+
+            out_f = open(stdout_file_path, stdout_mode) if stdout_file_path else None
+            err_f = open(stderr_file_path, stderr_mode) if stderr_file_path else None
             
             try:
-                # Case 1: External | External
-                if cmd1_p[0] not in builtins_list and cmd2_p[0] not in builtins_list:
-                    p1 = subprocess.Popen(cmd1_p, stdout=subprocess.PIPE)
-                    p2 = subprocess.Popen(cmd2_p, stdin=p1.stdout, stdout=output_file, stderr=error_file)
-                    p1.stdout.close(); p2.communicate()
+                curr_in = None
+                procs = []
                 
-                # Case 2: Builtin | External
-                elif cmd1_p[0] in builtins_list:
-                    capture = io.StringIO()
-                    run_builtin(cmd1_p, capture, sys.stderr, builtins_list)
-                    subprocess.run(cmd2_p, input=capture.getvalue().encode(), stdout=output_file, stderr=error_file)
+                for i, stage in enumerate(stages):
+                    is_last = (i == len(stages) - 1)
+                    cmd = stage[0]
+                    
+                    if cmd in builtins_list:
+                        # Builtin Stage
+                        buf = io.StringIO()
+                        run_builtin(stage, buf, err_f or sys.stderr, builtins_list)
+                        data = buf.getvalue().encode()
+                        
+                        if is_last:
+                            dest = out_f if out_f else sys.stdout
+                            dest.write(data.decode())
+                            if curr_in: os.close(curr_in); curr_in = None
+                        else:
+                            r, w = os.pipe()
+                            os.write(w, data)
+                            os.close(w)
+                            if curr_in: os.close(curr_in)
+                            curr_in = r
+                    else:
+                        # External Stage
+                        stdout = subprocess.PIPE if not is_last else out_f
+                        p = subprocess.Popen(stage, stdin=curr_in, stdout=stdout, stderr=err_f)
+                        procs.append(p)
+                        if curr_in: os.close(curr_in)
+                        if not is_last:
+                            curr_in = p.stdout.fileno()
                 
-                # Case 3: External | Builtin (e.g., ls | type exit)
-                else:
-                    p1 = subprocess.Popen(cmd1_p, stdout=subprocess.PIPE)
-                    run_builtin(cmd2_p, output_file or sys.stdout, error_file or sys.stderr, builtins_list)
-                    p1.communicate()
+                for p in procs:
+                    p.wait()
+            except Exception as e:
+                print(f"Pipeline error: {e}", file=sys.stderr)
             finally:
-                if output_file: output_file.close()
-                if error_file: error_file.close()
+                if out_f: out_f.close()
+                if err_f: err_f.close()
             continue
 
         # --- SINGLE COMMAND HANDLING ---
