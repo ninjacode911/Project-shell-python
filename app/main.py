@@ -53,19 +53,33 @@ def main():
         if not initial_parts:
             continue
             
-        # --- ENHANCED REDIRECTION LOGIC ---
+        # --- REDIRECTION LOGIC WITH APPEND SUPPORT ---
         stdout_file_path = None
         stderr_file_path = None
+        stdout_mode = "w"
+        stderr_mode = "w"
         parts = []
         
         i = 0
         while i < len(initial_parts):
             p = initial_parts[i]
+            # Handle Stdout Redirection
             if p in (">", "1>"):
                 stdout_file_path = initial_parts[i+1]
+                stdout_mode = "w"
                 i += 2
+            elif p in (">>", "1>>"):
+                stdout_file_path = initial_parts[i+1]
+                stdout_mode = "a"
+                i += 2
+            # Handle Stderr Redirection
             elif p == "2>":
                 stderr_file_path = initial_parts[i+1]
+                stderr_mode = "w"
+                i += 2
+            elif p == "2>>":
+                stderr_file_path = initial_parts[i+1]
+                stderr_mode = "a"
                 i += 2
             else:
                 parts.append(p)
@@ -79,24 +93,20 @@ def main():
         
         try:
             if stdout_file_path:
-                stdout_file = open(stdout_file_path, "w")
+                stdout_file = open(stdout_file_path, stdout_mode)
             if stderr_file_path:
-                stderr_file = open(stderr_file_path, "w")
+                stderr_file = open(stderr_file_path, stderr_mode)
 
             cmd = parts[0]
-            # Use sys.stdout/err as defaults if no redirection is present
             out = stdout_file if stdout_file else sys.stdout
             err = stderr_file if stderr_file else sys.stderr
 
             if cmd == "exit":
                 break
-
             elif cmd == "echo":
                 print(" ".join(parts[1:]), file=out)
-
             elif cmd == "pwd":
                 print(os.getcwd(), file=out)
-
             elif cmd == "cd":
                 if len(parts) > 1:
                     path = parts[1]
@@ -105,14 +115,11 @@ def main():
                     try:
                         os.chdir(path)
                     except (FileNotFoundError, NotADirectoryError):
-                        # Shell errors go to stderr!
                         print(f"cd: {path}: No such file or directory", file=err)
-
             elif cmd == "type":
                 if len(parts) > 1:
                     target = parts[1]
                     builtins = ["echo", "exit", "pwd", "cd", "type"]
-                    
                     if target in builtins:
                         print(f"{target} is a shell builtin", file=out)
                     else:
@@ -127,9 +134,7 @@ def main():
                             print(f"{target} is {found_path}", file=out)
                         else:
                             print(f"{target}: not found", file=out)
-
             else:
-                # External Commands
                 path_env = os.environ.get("PATH", "")
                 found_path = None
                 for dir in path_env.split(os.pathsep):
@@ -139,7 +144,6 @@ def main():
                         break
                 
                 if found_path:
-                    # Pass BOTH stdout and stderr to subprocess
                     subprocess.run(parts, stdout=stdout_file, stderr=stderr_file)
                 else:
                     print(f"{cmd}: command not found", file=err)
