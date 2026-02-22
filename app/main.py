@@ -4,37 +4,36 @@ import subprocess #importing subprocess module to run external commands
 
 
 def parse_command(command):
-    """Parse command line respecting single quotes."""
-    def parse_command(command):
-        parts = []
-        current_part = ""
-        quote_char = None  # This will be None, "'", or '"'
+    """Parse command line respecting single quotes and double quotes."""
+    parts = []
+    current_part = ""
+    quote_char = None  # This will be None, "'", or '"'
 
-        i = 0
-        while i < len(command):
-            char = command[i]
+    i = 0
+    while i < len(command):
+        char = command[i]
 
-            if quote_char is None:
-                # We are NOT inside any quotes
-                if char in ("'", '"'):
-                    quote_char = char  # Enter quote mode (single or double)
-                elif char == " ":
-                    if current_part:
-                        parts.append(current_part)
-                        current_part = ""
-                else:
-                    current_part += char
-            elif char == quote_char:
-                # We found the MATCHING closing quote
-                quote_char = None
+        if quote_char is None:
+            # We are NOT inside any quotes
+            if char in ("'", '"'):
+                quote_char = char  # Enter quote mode (single or double)
+            elif char == " ":
+                if current_part:
+                    parts.append(current_part)
+                    current_part = ""
             else:
-                # We are inside quotes, treat everything literally
                 current_part += char
-            i += 1
+        elif char == quote_char:
+            # We found the MATCHING closing quote
+            quote_char = None
+        else:
+            # We are inside quotes, treat everything literally
+            current_part += char
+        i += 1
 
-        if current_part:
-            parts.append(current_part)
-        return parts
+    if current_part:
+        parts.append(current_part)
+    return parts
 
 
 def main():
