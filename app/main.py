@@ -71,14 +71,10 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
         if history_list is not None:
             limit = len(history_list)
             if len(parts) > 1:
-                try:
-                    limit = int(parts[1])
-                except ValueError:
-                    pass
-            
+                try: limit = int(parts[1])
+                except ValueError: pass
             start_idx = max(0, len(history_list) - limit)
             for i in range(start_idx, len(history_list)):
-                # Standard format: right-aligned index (width 5) followed by 2 spaces
                 print(f"{i+1:5}  {history_list[i]}", file=out)
     return True
 
@@ -121,13 +117,14 @@ def main():
         if sys.platform != 'darwin': readline.parse_and_bind("tab: complete")
 
     while True:
-        sys.stdout.write("$ ")
-        sys.stdout.flush()
-        try: command_raw = input()
-        except EOFError: break
+        try:
+            # Use input() with prompt so readline knows the prompt length
+            command_raw = input("$ ")
+        except EOFError:
+            break
         
-        # Capture raw command for history before any processing
-        if command_raw.strip() or command_raw == "":
+        # Capture raw command for history if not empty
+        if command_raw.strip():
             history_list.append(command_raw)
             if 'readline' in sys.modules:
                 readline.add_history(command_raw)
