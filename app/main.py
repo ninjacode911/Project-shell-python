@@ -5,33 +5,36 @@ import subprocess #importing subprocess module to run external commands
 
 def parse_command(command):
     """Parse command line respecting single quotes."""
-    parts = []
-    current_part = []
-    in_quotes = False
-    
-    i = 0
-    while i < len(command):
-        char = command[i]
-        
-        if char == "'":
-            # Toggle quote mode
-            in_quotes = not in_quotes
-        elif char == ' ' and not in_quotes:
-            # Space outside quotes - end current part
-            if current_part:
-                parts.append(''.join(current_part))
-                current_part = []
-        else:
-            # Regular character or space inside quotes
-            current_part.append(char)
-        
-        i += 1
-    
-    # Add last part if any
-    if current_part:
-        parts.append(''.join(current_part))
-    
-    return parts
+    def parse_command(command):
+        parts = []
+        current_part = ""
+        quote_char = None  # This will be None, "'", or '"'
+
+        i = 0
+        while i < len(command):
+            char = command[i]
+
+            if quote_char is None:
+                # We are NOT inside any quotes
+                if char in ("'", '"'):
+                    quote_char = char  # Enter quote mode (single or double)
+                elif char == " ":
+                    if current_part:
+                        parts.append(current_part)
+                        current_part = ""
+                else:
+                    current_part += char
+            elif char == quote_char:
+                # We found the MATCHING closing quote
+                quote_char = None
+            else:
+                # We are inside quotes, treat everything literally
+                current_part += char
+            i += 1
+
+        if current_part:
+            parts.append(current_part)
+        return parts
 
 
 def main():
