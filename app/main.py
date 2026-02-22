@@ -32,10 +32,17 @@ def parse_command(command):
         elif char == quote_char:
             # Found the matching closing quote
             quote_char = None
+        elif char == "\\" and quote_char == '"':
+            # BACKSLASH INSIDE DOUBLE QUOTES
+            # Only escapes: ", \, $, and `
+            if i + 1 < len(command) and command[i+1] in ('"', '\\', '$', '`'):
+                current_part += command[i+1]
+                i += 1 # Skip next char
+            else:
+                # For everything else, keep the backslash literal
+                current_part += char
         else:
-            # INSIDE quotes
-            # Note: For this stage, we are treating double quotes literally 
-            # (except for closing). Future stages might add backslash support INSIDE double quotes.
+            # INSIDE quotes (literal characters)
             current_part += char
         
         i += 1
@@ -63,19 +70,19 @@ def main():
             
         cmd = parts[0]
 
-        # 1. Builtin: exit
+        # Builtin: exit
         if cmd == "exit":
             break
 
-        # 2. Builtin: echo
+        # Builtin: echo
         elif cmd == "echo":
             print(" ".join(parts[1:]))
 
-        # 3. Builtin: pwd
+        # Builtin: pwd
         elif cmd == "pwd":
             print(os.getcwd())
 
-        # 4. Builtin: cd
+        # Builtin: cd
         elif cmd == "cd":
             if len(parts) > 1:
                 path = parts[1]
@@ -86,7 +93,7 @@ def main():
                 except (FileNotFoundError, NotADirectoryError):
                     print(f"cd: {path}: No such file or directory")
 
-        # 5. Builtin: type
+        # Builtin: type
         elif cmd == "type":
             if len(parts) > 1:
                 target = parts[1]
@@ -95,7 +102,6 @@ def main():
                 if target in builtins:
                     print(f"{target} is a shell builtin")
                 else:
-                    # Search PATH for external command
                     path_env = os.environ.get("PATH", "")
                     found_path = None
                     for dir in path_env.split(os.pathsep):
@@ -109,7 +115,7 @@ def main():
                     else:
                         print(f"{target}: not found")
 
-        # 6. External Commands
+        # External Commands
         else:
             path_env = os.environ.get("PATH", "")
             found_path = None
@@ -120,7 +126,6 @@ def main():
                     break
             
             if found_path:
-                # Run the external program with parsed arguments
                 subprocess.run(parts)
             else:
                 print(f"{cmd}: command not found")
