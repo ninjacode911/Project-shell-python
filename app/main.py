@@ -69,9 +69,17 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
                 else: print(f"{target}: not found", file=out)
     elif cmd == "history":
         if history_list is not None:
-            for i, h in enumerate(history_list, 1):
+            limit = len(history_list)
+            if len(parts) > 1:
+                try:
+                    limit = int(parts[1])
+                except ValueError:
+                    pass
+            
+            start_idx = max(0, len(history_list) - limit)
+            for i in range(start_idx, len(history_list)):
                 # Standard format: right-aligned index (width 5) followed by 2 spaces
-                print(f"{i:5}  {h}", file=out)
+                print(f"{i+1:5}  {history_list[i]}", file=out)
     return True
 
 def main():
