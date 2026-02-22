@@ -45,7 +45,7 @@ def get_executable_path(cmd):
             return full_path
     return None
 
-def run_builtin(parts, out, err, builtins_list, history_list=None):
+def run_builtin(parts, out, err, builtins_list, history_list=None, last_append_ptr=None):
     """Executes a builtin command and writes output/error to specified streams."""
     cmd = parts[0]
     if cmd == "echo":
@@ -80,16 +80,24 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
                                     history_list.append(h_line)
                                     if 'readline' in sys.modules:
                                         readline.add_history(h_line)
-                except Exception:
-                    pass
+                except Exception: pass
             elif len(parts) >= 3 and parts[1] == "-w":
                 path = parts[2]
                 try:
                     with open(path, "w") as f:
                         for h_item in history_list:
                             f.write(h_item + "\n")
-                except Exception:
-                    pass
+                except Exception: pass
+            elif len(parts) >= 3 and parts[1] == "-a":
+                path = parts[2]
+                try:
+                    start_idx = last_append_ptr[0] if last_append_ptr else 0
+                    with open(path, "a") as f:
+                        for i in range(start_idx, len(history_list)):
+                            f.write(history_list[i] + "\n")
+                    if last_append_ptr is not None:
+                        last_append_ptr[0] = len(history_list)
+                except Exception: pass
             else:
                 limit = len(history_list)
                 if len(parts) > 1:
@@ -103,6 +111,7 @@ def run_builtin(parts, out, err, builtins_list, history_list=None):
 def main():
     builtins_list = ["echo", "exit", "pwd", "cd", "type", "history"]
     history_list = []
+    last_append_ptr = [0] # Pointer to the first un-appended command for 'history -a'
 
     def completer(text, state):
         matches = [b for b in builtins_list if b.startswith(text)]
@@ -144,10 +153,9 @@ def main():
         except EOFError:
             break
         
-        # Add to history list for 'history' builtin
+        # Capture raw command for history list
         history_list.append(command_raw)
         
-        # Add to interactive readline history ONLY if it's not a duplicate of the last entry
         if 'readline' in sys.modules and command_raw.strip():
             hist_len = readline.get_current_history_length()
             if hist_len == 0 or readline.get_history_item(hist_len) != command_raw:
@@ -156,7 +164,6 @@ def main():
         initial_parts = parse_command(command_raw)
         if not initial_parts: continue
         
-        # Redirection Parsing
         stdout_file_path, stderr_file_path = None, None
         stdout_mode, stderr_mode = "w", "w"
         parts = []
@@ -190,7 +197,7 @@ def main():
                     is_last = (i == len(stages) - 1)
                     if stage[0] in builtins_list:
                         buf = io.StringIO()
-                        run_builtin(stage, buf, err_f or sys.stderr, builtins_list, history_list)
+                        run_builtin(stage, buf, err_f or sys.stderr, builtins_list, history_list, last_append_ptr)
                         data = buf.getvalue().encode()
                         if curr_in is not None:
                             if isinstance(curr_in, int): os.close(curr_in)
@@ -228,7 +235,7 @@ def main():
             out, err = (stdout_file or sys.stdout), (stderr_file or sys.stderr)
             if parts[0] == "exit": break
             if parts[0] in builtins_list:
-                run_builtin(parts, out, err, builtins_list, history_list)
+                run_builtin(parts, out, err, builtins_list, history_list, last_append_ptr)
             elif get_executable_path(parts[0]):
                 subprocess.run(parts, stdout=stdout_file, stderr=stderr_file)
             else:
