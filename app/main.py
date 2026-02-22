@@ -45,7 +45,7 @@ def get_executable_path(cmd):
             return full_path
     return None
 
-def run_builtin(parts, out, err, builtins_list):
+def run_builtin(parts, out, err, builtins_list, history_list=None):
     """Executes a builtin command and writes output/error to specified streams."""
     cmd = parts[0]
     if cmd == "echo":
@@ -67,10 +67,16 @@ def run_builtin(parts, out, err, builtins_list):
                 full_path = get_executable_path(target)
                 if full_path: print(f"{target} is {full_path}", file=out)
                 else: print(f"{target}: not found", file=out)
+    elif cmd == "history":
+        if history_list is not None:
+            for i, h in enumerate(history_list, 1):
+                # Format: right-aligned index in field of 5, two spaces, then command
+                print(f"{i:5}  {h}", file=out)
     return True
 
 def main():
-    builtins_list = ["echo", "exit", "pwd", "cd", "type"]
+    builtins_list = ["echo", "exit", "pwd", "cd", "type", "history"]
+    history_list = []
 
     def completer(text, state):
         matches = [b for b in builtins_list if b.startswith(text)]
@@ -111,10 +117,13 @@ def main():
         sys.stdout.flush()
         try: command_raw = input()
         except EOFError: break
+        
+        if command_raw.strip():
+            history_list.append(command_raw)
+
         initial_parts = parse_command(command_raw)
         if not initial_parts: continue
         
-        # Redirection Parsing
         stdout_file_path, stderr_file_path = None, None
         stdout_mode, stderr_mode = "w", "w"
         parts = []
@@ -129,7 +138,7 @@ def main():
 
         if not parts: continue
 
-        # --- PIPELINE HANDLING (N stages) ---
+        # --- PIPELINE HANDLING ---
         if "|" in parts:
             stages = []
             tmp = []
@@ -144,23 +153,16 @@ def main():
             try:
                 curr_in = None
                 procs = []
-                
                 for i, stage in enumerate(stages):
                     is_last = (i == len(stages) - 1)
-                    cmd = stage[0]
-                    
-                    if cmd in builtins_list:
-                        # Builtin Stage
+                    if stage[0] in builtins_list:
                         buf = io.StringIO()
-                        run_builtin(stage, buf, err_f or sys.stderr, builtins_list)
+                        run_builtin(stage, buf, err_f or sys.stderr, builtins_list, history_list)
                         data = buf.getvalue().encode()
-                        
-                        # Close previous input
                         if curr_in is not None:
                             if isinstance(curr_in, int): os.close(curr_in)
                             else: curr_in.close()
                             curr_in = None
-
                         if is_last:
                             dest = out_f if out_f else sys.stdout
                             dest.write(data.decode())
@@ -171,24 +173,16 @@ def main():
                             os.close(w)
                             curr_in = r
                     else:
-                        # External Stage
                         stdout = subprocess.PIPE if not is_last else out_f
                         p = subprocess.Popen(stage, stdin=curr_in, stdout=stdout, stderr=err_f)
                         procs.append(p)
-                        
                         if curr_in is not None:
                             if isinstance(curr_in, int): os.close(curr_in)
                             else: curr_in.close()
-                        
-                        if not is_last:
-                            curr_in = p.stdout
-                        else:
-                            curr_in = None
-                
-                for p in procs:
-                    p.wait()
-            except Exception:
-                pass
+                        if not is_last: curr_in = p.stdout
+                        else: curr_in = None
+                for p in procs: p.wait()
+            except Exception: pass
             finally:
                 if out_f: out_f.close()
                 if err_f: err_f.close()
@@ -201,7 +195,7 @@ def main():
             out, err = (stdout_file or sys.stdout), (stderr_file or sys.stderr)
             if parts[0] == "exit": break
             if parts[0] in builtins_list:
-                run_builtin(parts, out, err, builtins_list)
+                run_builtin(parts, out, err, builtins_list, history_list)
             elif get_executable_path(parts[0]):
                 subprocess.run(parts, stdout=stdout_file, stderr=stderr_file)
             else:
