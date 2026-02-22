@@ -1,112 +1,129 @@
-import sys #importing sys module to interact with the system
-import os   #importing os module to interact with the operating system
-import subprocess #importing subprocess module to run external commands
-
+import sys
+import os
+import subprocess
 
 def parse_command(command):
-    """Parse command line respecting single quotes and double quotes."""
+    """Parse command line respecting single quotes, double quotes, and backslashes."""
     parts = []
     current_part = ""
-    quote_char = None  # This will be None, "'", or '"'
-
+    quote_char = None  # None, "'", or '"'
+    
     i = 0
     while i < len(command):
         char = command[i]
 
         if quote_char is None:
-            # We are NOT inside any quotes
-            if char in ("'", '"'):
-                quote_char = char  # Enter quote mode (single or double)
+            # OUTSIDE of any quotes
+            if char == "\\":
+                # Backslash escaping: take the next character literally
+                i += 1
+                if i < len(command):
+                    current_part += command[i]
+            elif char in ("'", '"'):
+                # Enter quote mode
+                quote_char = char
             elif char == " ":
+                # Space is a delimiter outside of quotes
                 if current_part:
                     parts.append(current_part)
                     current_part = ""
             else:
                 current_part += char
         elif char == quote_char:
-            # We found the MATCHING closing quote
+            # Found the matching closing quote
             quote_char = None
         else:
-            # We are inside quotes, treat everything literally
+            # INSIDE quotes
+            # Note: For this stage, we are treating double quotes literally 
+            # (except for closing). Future stages might add backslash support INSIDE double quotes.
             current_part += char
+        
         i += 1
 
+    # Add the final part if it exists
     if current_part:
         parts.append(current_part)
+        
     return parts
 
-
 def main():
-    while True: # this adds an infinite loop to make sure the program runs continuously
-        sys.stdout.write("$ ") # this lets you write '$' to the console
-        command = input() # Captures the user's command in the "command" variable
-        parts = parse_command(command) # splits the command into a list of words
+    while True:
+        sys.stdout.write("$ ")
+        sys.stdout.flush()
+        
+        try:
+            command_raw = input()
+        except EOFError:
+            break
+            
+        parts = parse_command(command_raw)
+        
+        if not parts:
+            continue
+            
+        cmd = parts[0]
 
-
-        # if-starts 
-
-        if command == "exit":  # if the command is exit, break the loop
+        # 1. Builtin: exit
+        if cmd == "exit":
             break
 
-        elif command.startswith("echo"):
-            print(" ".join(parts[1:])) # joins the list of words back into a string
+        # 2. Builtin: echo
+        elif cmd == "echo":
+            print(" ".join(parts[1:]))
 
-
-        elif command.startswith("type "):
-            cmd_to_check = command.split()[1]
-            if cmd_to_check in ['echo', 'exit', 'type', 'pwd', 'cd']:
-                print(f"{cmd_to_check} is a shell builtin")
-            else:
-                #search in path
-                path_env = os.environ.get('PATH','')
-                directories = path_env.split(os.pathsep)
-                found = False
-                for directory in directories:
-                    file_path = os.path.join(directory, cmd_to_check)
-                    if os.path.exists(file_path) and os.access(file_path, os.X_OK):
-                        print(f"{cmd_to_check} is {file_path}")
-                        found = True
-                        break
-                if not found:
-                    print(f"{cmd_to_check}: not found")
-
-        elif command.startswith('cd '):
-            directory = parts[1]
-
-            if directory == '~':
-                directory = os.path.expanduser('~')
-
-            try:
-                os.chdir(directory)
-            except FileNotFoundError:
-                print(f"cd: {directory}: No such file or directory")
-
-        elif command == "pwd":
+        # 3. Builtin: pwd
+        elif cmd == "pwd":
             print(os.getcwd())
 
-        else:
-            #not a bulletin but try to run as an external program
-            #split to get program name and arguments
-            if len(parts) == 0:
-                continue
-            
-            program_name = parts[0]
+        # 4. Builtin: cd
+        elif cmd == "cd":
+            if len(parts) > 1:
+                path = parts[1]
+                if path == "~":
+                    path = os.path.expanduser("~")
+                try:
+                    os.chdir(path)
+                except (FileNotFoundError, NotADirectoryError):
+                    print(f"cd: {path}: No such file or directory")
 
-            path_env = os.environ.get('PATH','')
-            directories = path_env.split(os.pathsep)
-
-            found= False
-            for directory in directories:
-                file_path = os.path.join(directory, program_name)
-                if os.path.exists(file_path) and os.access(file_path, os.X_OK):
+        # 5. Builtin: type
+        elif cmd == "type":
+            if len(parts) > 1:
+                target = parts[1]
+                builtins = ["echo", "exit", "pwd", "cd", "type"]
+                
+                if target in builtins:
+                    print(f"{target} is a shell builtin")
+                else:
+                    # Search PATH for external command
+                    path_env = os.environ.get("PATH", "")
+                    found_path = None
+                    for dir in path_env.split(os.pathsep):
+                        full_path = os.path.join(dir, target)
+                        if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                            found_path = full_path
+                            break
                     
-                    found = True
-                    break
-            if found:
-                subprocess.run([program_name] + parts[1:])
-            else:
-                print(f"{command}: command not found")
+                    if found_path:
+                        print(f"{target} is {found_path}")
+                    else:
+                        print(f"{target}: not found")
 
+        # 6. External Commands
+        else:
+            path_env = os.environ.get("PATH", "")
+            found_path = None
+            for dir in path_env.split(os.pathsep):
+                full_path = os.path.join(dir, cmd)
+                if os.path.isfile(full_path) and os.access(full_path, os.X_OK):
+                    found_path = full_path
+                    break
+            
+            if found_path:
+                # Run the external program with parsed arguments
+                subprocess.run(parts)
+            else:
+                print(f"{cmd}: command not found")
 
 if __name__ == "__main__":
     main()
