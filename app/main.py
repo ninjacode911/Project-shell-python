@@ -79,6 +79,10 @@ def main():
                 i += 2
             elif p == "2>>":
                 stderr_file_path = initial_parts[i+1]
+                stderr_mode = "a" # Append mode!
+                i += 2
+            elif p == "2>>":
+                stderr_file_path = initial_parts[i+1]
                 stderr_mode = "a"
                 i += 2
             else:
