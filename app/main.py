@@ -129,6 +129,8 @@ def main():
         # Capture raw command for history before any processing
         if command_raw.strip() or command_raw == "":
             history_list.append(command_raw)
+            if 'readline' in sys.modules:
+                readline.add_history(command_raw)
 
         initial_parts = parse_command(command_raw)
         if not initial_parts: continue
