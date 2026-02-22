@@ -48,10 +48,8 @@ def main():
     builtins_list = ["echo", "exit", "pwd", "cd", "type"]
 
     def completer(text, state):
-        # 1. Match builtins
+        # 1. Match builtins and Path Executables
         matches = [b for b in builtins_list if b.startswith(text)]
-        
-        # 2. Match Path Executables
         path_env = os.environ.get("PATH", "")
         for directory in path_env.split(os.pathsep):
             if not os.path.isdir(directory):
@@ -66,14 +64,51 @@ def main():
             except Exception:
                 continue
 
-        # Clean, Sort, and Index matches
         matches = sorted(list(set(matches)))
+        if not matches:
+            return None
+        
+        # 2. Case: Unique match
+        if len(matches) == 1:
+            if state == 0:
+                return matches[0] + " "
+            return None
+            
+        # 3. Case: Multiple matches
+        common = os.path.commonprefix(matches)
+        
+        # 3a. If we can extend the current text with a common prefix
+        if len(common) > len(text):
+            if state == 0:
+                return common
+            return None
+            
+        # 3b. Ambiguity reached (common prefix is no longer than current text)
+        # We return matches one-by-one. Readline will ring bell on first tab
+        # and trigger the display hook on the second tab.
         if state < len(matches):
-            return matches[state] + " "
+            return matches[state]
         return None
+
+    def display_matches(substitution, matches, longest_match_len):
+        """Custom hook to display matches in the format required by CodeCrafters."""
+        # matches list contains the completions found by the completer
+        valid_matches = sorted(list(set([m for m in matches if m])))
+        
+        # Print results on a new line
+        sys.stdout.write("\n" + "  ".join(valid_matches) + "\n")
+        # Redisplay the prompt and current buffer
+        sys.stdout.write("$ " + readline.get_line_buffer())
+        sys.stdout.flush()
 
     if 'readline' in sys.modules:
         readline.set_completer(completer)
+        readline.set_completion_display_matches_hook(display_matches)
+        # Treat the entire line as one word for command completion
+        readline.set_completer_delims('')
+        # Enable visible bell for the tester to see \x07
+        readline.parse_and_bind("set bell-style audible")
+        
         if sys.platform == 'darwin':
             readline.parse_and_bind("bind ^I rl_complete")
         else:
